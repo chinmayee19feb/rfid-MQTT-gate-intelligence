@@ -38,3 +38,22 @@ module "vpc" {
   public_subnet_cidr  = var.public_subnet_cidr
   private_subnet_cidr = var.private_subnet_cidr
 }
+
+module "ec2" {
+  source = "./modules/ec2"
+
+  project_name     = var.project_name
+  environment      = var.environment
+  ami_id           = var.ami_id
+  public_subnet_id = module.vpc.public_subnet_id
+  bastion_sg_id    = module.vpc.bastion_sg_id
+  app_sg_id        = module.vpc.app_sg_id
+  key_name         = var.key_name
+}
+
+module "dynamodb" {
+  source = "./modules/dynamodb"
+
+  project_name = var.project_name
+  environment  = var.environment
+}

@@ -39,3 +39,15 @@ variable "private_subnet_cidr" {
   type        = string
   default     = "10.0.2.0/24"
 }
+
+variable "ami_id" {
+  description = "Amazon Linux 2023 AMI ID for EC2 instances"
+  type        = string
+  default     = "ami-0c421724a94bba6d6"
+}
+
+variable "key_name" {
+  description = "SSH key pair name"
+  type        = string
+  default     = "rfid-gate-key"
+}
