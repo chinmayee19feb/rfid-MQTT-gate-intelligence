@@ -27,3 +27,13 @@ output "app_server_private_ip" {
   description = "App server private IP"
   value       = module.ec2.app_server_private_ip
 }
+
+output "rfid_events_table" {
+  description = "DynamoDB table for RFID events"
+  value       = module.dynamodb.rfid_events_table_name
+}
+
+output "health_events_table" {
+  description = "DynamoDB table for health events"
+  value       = module.dynamodb.health_events_table_name
+}
