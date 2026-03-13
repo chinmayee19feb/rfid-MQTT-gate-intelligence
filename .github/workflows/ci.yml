@@ -1,0 +1,335 @@
+# ============================================================
+# CI Pipeline — RFID Gate Intelligence Platform
+# ============================================================
+# Runs automatically on every push and pull request.
+# 
+# What it does:
+#   1. Sets up Python 3.10
+#   2. Installs dependencies for all components
+#   3. Runs simulator packet validation tests
+#   4. Runs middleware smoke tests
+#   5. Runs a quick integration test (simulator → middleware)
+#
+# If any step fails, the whole pipeline fails and you get
+# a red ✗ on your GitHub commit. Green ✓ = all good.
+# ============================================================
+
+name: CI Pipeline
+
+# When does this run?
+on:
+  push:
+    branches: [main]          # Every push to main branch
+  pull_request:
+    branches: [main]          # Every PR targeting main
+
+jobs:
+  # --------------------------------------------------------
+  # Job 1: Lint and validate code structure
+  # --------------------------------------------------------
+  lint:
+    name: Code quality checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Check Python syntax
+        run: |
+          python -m py_compile middleware/app.py
+          python -m py_compile middleware/mqtt_client.py
+          python -m py_compile middleware/packet_handler.py
+          python -m py_compile simulator/ctagent_simulator.py
+          python -m py_compile simulator/config.py
+          python -m py_compile simulator/test_packets.py
+          python -m py_compile ai_layer/ai_layer.py
+          python -m py_compile ai_layer/anomaly_detector.py
+          python -m py_compile ai_layer/event_store.py
+          python -m py_compile ai_layer/config.py
+          echo "✓ All Python files compile successfully"
+
+  # --------------------------------------------------------
+  # Job 2: Run simulator packet validation tests
+  # --------------------------------------------------------
+  test-simulator:
+    name: Simulator packet tests
+    runs-on: ubuntu-latest
+    needs: lint                # Only runs if lint passes
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+
+      - name: Run packet validation tests
+        working-directory: simulator
+        run: |
+          python test_packets.py
+
+  # --------------------------------------------------------
+  # Job 3: Run middleware unit tests
+  # --------------------------------------------------------
+  test-middleware:
+    name: Middleware tests
+    runs-on: ubuntu-latest
+    needs: lint                # Only runs if lint passes
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install flask boto3 paho-mqtt python-dotenv requests
+
+      - name: Run middleware smoke tests
+        working-directory: middleware
+        env:
+          # Use dummy values for CI — we're not connecting to real AWS
+          AWS_REGION: us-east-1
+          DYNAMODB_RFID_TABLE: test-rfid-events
+          DYNAMODB_HEALTH_TABLE: test-health-events
+          MQTT_BROKER_HOST: localhost
+          MQTT_BROKER_PORT: "1883"
+        run: |
+          # Test 1: Verify all modules import correctly
+          python -c "
+          from packet_handler import validate_health_packet, validate_tag_packet
+          from packet_handler import format_health_ack, format_tag_ack, extract_direction
+          print('✓ All middleware modules import successfully')
+          "
+
+          # Test 2: Validate health packet handler
+          python -c "
+          from packet_handler import validate_health_packet
+          
+          # Valid packet should pass
+          valid = {
+              'TYP': 'GRHBPKT',
+              'GATE_READER_ID': 'f8e375cff9d1f97d',
+              'SAMPLE_PERIODICITY': 15,
+              'TIMESTAMP': '1635248662321',
+              'HLTH_STAT_REQ': [
+                  {'Antenna1': 'Y'},
+                  {'Antenna2': 'Y'},
+                  {'Antenna3': 'N'},
+                  {'Antenna4': 'Y'}
+              ]
+          }
+          is_valid, error = validate_health_packet(valid)
+          assert is_valid, f'Valid packet rejected: {error}'
+          print('✓ Health packet validation works')
+          "
+
+          # Test 3: Validate tag packet handler
+          python -c "
+          from packet_handler import validate_tag_packet, extract_direction
+          
+          # Valid packet should pass
+          valid = {
+              'TYP': 'GRTAGDATA',
+              'GATE_READER_ID': 'f8e375cff9d1f97d',
+              'READPOINT': 'PLANT_01_DOOR_03.IN',
+              'EVENTTIME': '1635248662321',
+              'FILE_EPCList': [
+                  {'0': '884D000EDF000000001'},
+                  {'1': '884D000EDC0000000002'}
+              ]
+          }
+          is_valid, error = validate_tag_packet(valid)
+          assert is_valid, f'Valid packet rejected: {error}'
+          
+          # Direction extraction
+          assert extract_direction('PLANT_01_DOOR_03.IN') == 'IN'
+          assert extract_direction('PLANT_01_DOOR_03.OUT') == 'OUT'
+          print('✓ Tag packet validation works')
+          "
+
+          # Test 4: Validate ACK formatting
+          python -c "
+          from packet_handler import format_health_ack, format_tag_ack
+          
+          # Health ACK
+          ack = format_health_ack('reader123', '1635248662321', 4000)
+          assert ack['TYP'] == 'GRHBACK'
+          assert ack['MSG_ACK_STATUS']['Error_Code'] == 4000
+          
+          # Tag ACK
+          ack = format_tag_ack('reader123', 'PLANT_01.IN', '1635248662321', 4000)
+          assert ack['TYP'] == 'GRTAGDATACK'
+          assert ack['MSG_ACK_STATUS']['Error_Code'] == 4000
+          
+          # Error codes
+          ack = format_health_ack('reader123', '123', 4001)
+          assert ack['MSG_ACK_STATUS']['Error_Code'] == 4001
+          
+          print('✓ ACK formatting works for all error codes')
+          "
+
+  # --------------------------------------------------------
+  # Job 4: Integration test (simulator → middleware)
+  # --------------------------------------------------------
+  test-integration:
+    name: Integration test
+    runs-on: ubuntu-latest
+    needs: [test-simulator, test-middleware]  # Only if both pass
+
+    services:
+      # Start a Mosquitto MQTT broker as a service container
+      mosquitto:
+        image: eclipse-mosquitto
+        ports:
+          - 1883:1883
+        options: >-
+          --health-cmd "mosquitto_sub -t '#' -C 1 -W 1 || true"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install flask boto3 paho-mqtt python-dotenv requests
+
+      - name: Run integration test
+        env:
+          MQTT_BROKER_HOST: localhost
+          MQTT_BROKER_PORT: "1883"
+          AWS_REGION: us-east-1
+          DYNAMODB_RFID_TABLE: test-rfid-events
+          DYNAMODB_HEALTH_TABLE: test-health-events
+          MIDDLEWARE_API_KEY: test-key-for-ci
+        run: |
+          python -c "
+          import json
+          import time
+          import threading
+          import requests
+          from flask import Flask
+
+          # ---- Start middleware in background (mock DynamoDB) ----
+          import sys
+          sys.path.insert(0, 'middleware')
+          
+          # Mock DynamoDB to avoid needing real AWS
+          import unittest.mock as mock
+          mock_table = mock.MagicMock()
+          mock_table.put_item = mock.MagicMock(return_value=None)
+          
+          import app as middleware_app
+          middleware_app.rfid_table = mock_table
+          middleware_app.health_table = mock_table
+          
+          # Start Flask in background thread
+          server = threading.Thread(
+              target=lambda: middleware_app.app.run(port=4501, debug=False, use_reloader=False),
+              daemon=True
+          )
+          server.start()
+          time.sleep(2)  # Wait for server to start
+          
+          # ---- Test 1: Health check endpoint ----
+          resp = requests.get('http://localhost:4501/health')
+          assert resp.status_code == 200, f'Health check failed: {resp.status_code}'
+          data = resp.json()
+          assert data['status'] == 'ok'
+          assert data['auth_enabled'] == True
+          print('✓ Health endpoint works')
+          
+          # ---- Test 2: Reject request without API key ----
+          resp = requests.post('http://localhost:4501/rfid/data',
+              json={'TYP': 'GRHBPKT'},
+              headers={'Content-Type': 'application/json'})
+          assert resp.status_code == 401, f'Expected 401, got {resp.status_code}'
+          print('✓ Requests without API key are rejected')
+          
+          # ---- Test 3: Accept request with valid API key ----
+          health_packet = {
+              'TYP': 'GRHBPKT',
+              'GATE_READER_ID': 'test-reader-001',
+              'SAMPLE_PERIODICITY': 15,
+              'TIMESTAMP': '1635248662321',
+              'HLTH_STAT_REQ': [
+                  {'Antenna1': 'Y'},
+                  {'Antenna2': 'Y'},
+                  {'Antenna3': 'Y'},
+                  {'Antenna4': 'Y'}
+              ]
+          }
+          resp = requests.post('http://localhost:4501/rfid/data',
+              json=health_packet,
+              headers={
+                  'Content-Type': 'application/json',
+                  'X-API-Key': 'test-key-for-ci'
+              })
+          assert resp.status_code == 200, f'Expected 200, got {resp.status_code}'
+          ack = resp.json()
+          assert ack['TYP'] == 'GRHBACK'
+          assert ack['MSG_ACK_STATUS']['Error_Code'] == 4000
+          print('✓ Health packet accepted and ACK returned')
+          
+          # ---- Test 4: Tag telemetry packet ----
+          tag_packet = {
+              'TYP': 'GRTAGDATA',
+              'GATE_READER_ID': 'test-reader-001',
+              'READPOINT': 'PLANT_01_DOOR_01.IN',
+              'EVENTTIME': '1635248662321',
+              'FILE_EPCList': [
+                  {'0': '884D000EDF000000001'},
+                  {'1': '884D000EDC0000000002'}
+              ]
+          }
+          resp = requests.post('http://localhost:4501/rfid/data',
+              json=tag_packet,
+              headers={
+                  'Content-Type': 'application/json',
+                  'X-API-Key': 'test-key-for-ci'
+              })
+          assert resp.status_code == 200, f'Expected 200, got {resp.status_code}'
+          ack = resp.json()
+          assert ack['TYP'] == 'GRTAGDATACK'
+          assert ack['MSG_ACK_STATUS']['Error_Code'] == 4000
+          print('✓ Tag packet accepted and ACK returned')
+          
+          # ---- Test 5: Invalid packet rejected ----
+          resp = requests.post('http://localhost:4501/rfid/data',
+              json={'TYP': 'INVALID'},
+              headers={
+                  'Content-Type': 'application/json',
+                  'X-API-Key': 'test-key-for-ci'
+              })
+          assert resp.status_code == 400, f'Expected 400, got {resp.status_code}'
+          print('✓ Invalid packet type correctly rejected')
+          
+          print()
+          print('='*50)
+          print('  ✓ ALL INTEGRATION TESTS PASSED')
+          print('='*50)
+          "
