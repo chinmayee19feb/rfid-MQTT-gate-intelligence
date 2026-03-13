@@ -5,12 +5,18 @@ Defines gate readers, EPC tag pools, read points, and timing settings.
 All values based on the Intellistride C++ Integration with Reader and MQTT spec.
 """
 
+import os
+
 # ---------------------------------------------------------------------------
 # Middleware connection
 # ---------------------------------------------------------------------------
 MIDDLEWARE_URL = "http://localhost:4501/rfid/data"
 # When running against the AWS app server, change to:
-# MIDDLEWARE_URL = "http://100.54.32.242:4501"
+# MIDDLEWARE_URL = "http://100.54.32.242:4501/rfid/data"
+
+# API key for authenticating with the middleware
+# Read from environment variable (set in .env file)
+MIDDLEWARE_API_KEY = os.getenv("MIDDLEWARE_API_KEY", "")
 
 # ---------------------------------------------------------------------------
 # Gate reader definitions
@@ -41,20 +47,15 @@ GATE_READERS = [
 # ---------------------------------------------------------------------------
 # Timing (seconds)
 # ---------------------------------------------------------------------------
-# Health packets are sent every HEALTH_INTERVAL seconds.
-# The spec says SAMPLE_PERIODICITY is in minutes; default = 15 min.
 HEALTH_INTERVAL_SECONDS = 15 * 60          # 15 minutes (production)
 HEALTH_INTERVAL_SECONDS_DEMO = 30          # 30 seconds  (demo / testing)
 
-# Tag telemetry packets are sent at random intervals within this range.
 TAG_MIN_INTERVAL_SECONDS = 3               # fastest gap between tag events
 TAG_MAX_INTERVAL_SECONDS = 15              # slowest gap between tag events
 
 # ---------------------------------------------------------------------------
 # EPC tag pools
 # ---------------------------------------------------------------------------
-# Realistic 24-hex-char EPC codes grouped by asset type.
-# The simulator randomly picks a subset for each telemetry event.
 FILE_EPCS = [
     "884D000EDF000000000001",
     "884D000EDF000000000002",
@@ -82,18 +83,15 @@ CART_EPCS = [
     "884D000EDB0000000B0003",
 ]
 
-# How many EPC tags to include per telemetry packet (min, max).
 TAGS_PER_EVENT_MIN = 1
 TAGS_PER_EVENT_MAX = 8
 
 # ---------------------------------------------------------------------------
 # Direction weights
 # ---------------------------------------------------------------------------
-# Probability of IN vs OUT.  0.6 means 60 % of events are IN.
 DIRECTION_IN_WEIGHT = 0.6
 
 # ---------------------------------------------------------------------------
 # Antenna failure simulation
 # ---------------------------------------------------------------------------
-# Probability that any single antenna reports "N" (not operational).
 ANTENNA_FAILURE_PROBABILITY = 0.05         # 5 % chance per antenna

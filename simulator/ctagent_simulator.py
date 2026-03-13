@@ -148,13 +148,24 @@ def send_packet(url: str, packet: dict, verbose: bool = False) -> dict | None:
       4010 – unknown error
     """
     try:
-        resp = requests.post(url, json=packet, timeout=10)
+        # Build headers — include API key if configured
+        headers = {"Content-Type": "application/json"}
+        if config.MIDDLEWARE_API_KEY:
+            headers["X-API-Key"] = config.MIDDLEWARE_API_KEY
+
+        resp = requests.post(url, json=packet, headers=headers, timeout=10)
 
         if verbose:
             logger.debug(f"→ POST {url}  status={resp.status_code}")
 
         if resp.status_code == 200:
             return resp.json()
+        elif resp.status_code == 401:
+            logger.error(f"{RED}Rejected — missing API key{RESET}")
+            return None
+        elif resp.status_code == 403:
+            logger.error(f"{RED}Rejected — invalid API key{RESET}")
+            return None
         else:
             logger.warning(f"HTTP {resp.status_code} from middleware: {resp.text[:200]}")
             return None
@@ -170,7 +181,6 @@ def send_packet(url: str, packet: dict, verbose: bool = False) -> dict | None:
     except Exception as exc:
         logger.error(f"{RED}Unexpected error:{RESET} {exc}")
         return None
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Pretty-print helpers
