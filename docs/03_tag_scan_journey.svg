@@ -1,0 +1,84 @@
+<svg width="100%" viewBox="0 0 680 920" xmlns="http://www.w3.org/2000/svg" style="font-family: system-ui, -apple-system, sans-serif; background: white;">
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<text x="340" y="28" text-anchor="middle" font-size="16" font-weight="500" fill="#2C2C2A">Life of a tag scan — what happens step by step</text>
+<text x="340" y="48" text-anchor="middle" font-size="12" fill="#888780">A box goes OUT through Door 01. Here's what the system does:</text>
+
+<!-- Step 1 -->
+<rect x="140" y="70" width="400" height="56" rx="10" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="160" y="94" font-size="14" font-weight="500" fill="#4A1B0C">Step 1 — Tag detected at gate</text>
+<text x="160" y="112" font-size="12" fill="#993C1D">Box with EPC 884D000EDF01 passes through Door 01 going OUT</text>
+<text x="110" y="98" text-anchor="middle" fill="#D85A30" font-size="18" font-weight="500">1</text>
+<line x1="340" y1="126" x2="340" y2="148" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- Step 2 -->
+<rect x="140" y="150" width="400" height="56" rx="10" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="160" y="174" font-size="14" font-weight="500" fill="#4A1B0C">Step 2 — Simulator sends HTTP POST</text>
+<text x="160" y="192" font-size="12" fill="#993C1D">POST http://localhost:4501/rfid/data with GRTAGDATA JSON</text>
+<text x="110" y="178" text-anchor="middle" fill="#D85A30" font-size="18" font-weight="500">2</text>
+<line x1="340" y1="206" x2="340" y2="228" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- Step 3 -->
+<rect x="140" y="230" width="400" height="56" rx="10" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="160" y="254" font-size="14" font-weight="500" fill="#042C53">Step 3 — Middleware validates</text>
+<text x="160" y="272" font-size="12" fill="#185FA5">Checks: is TYP correct? Is GATE_READER_ID present? Valid EPC list?</text>
+<text x="110" y="258" text-anchor="middle" fill="#185FA5" font-size="18" font-weight="500">3</text>
+<line x1="340" y1="286" x2="340" y2="308" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- Step 4 -->
+<rect x="140" y="310" width="400" height="56" rx="10" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="160" y="334" font-size="14" font-weight="500" fill="#412402">Step 4 — Stored in DynamoDB</text>
+<text x="160" y="352" font-size="12" fill="#854F0B">Tag event saved permanently in AWS (rfid-events table)</text>
+<text x="110" y="338" text-anchor="middle" fill="#BA7517" font-size="18" font-weight="500">4</text>
+<line x1="340" y1="366" x2="340" y2="388" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- Step 5 -->
+<rect x="140" y="390" width="400" height="56" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="160" y="414" font-size="14" font-weight="500" fill="#04342C">Step 5 — Published to MQTT</text>
+<text x="160" y="432" font-size="12" fill="#0F6E56">Middleware publishes to Intellidb/rfid/gr/uplink (as middleware_svc)</text>
+<text x="110" y="418" text-anchor="middle" fill="#0F6E56" font-size="18" font-weight="500">5</text>
+<line x1="340" y1="446" x2="340" y2="468" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- Step 6 -->
+<rect x="140" y="470" width="400" height="56" rx="10" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="160" y="494" font-size="14" font-weight="500" fill="#042C53">Step 6 — ACK sent back to simulator</text>
+<text x="160" y="512" font-size="12" fill="#185FA5">GRTAGDATACK with Error_Code 4000 = "success"</text>
+<text x="110" y="498" text-anchor="middle" fill="#185FA5" font-size="18" font-weight="500">6</text>
+<line x1="340" y1="526" x2="340" y2="548" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- Step 7 -->
+<rect x="140" y="550" width="400" height="56" rx="10" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="160" y="574" font-size="14" font-weight="500" fill="#26215C">Step 7 — AI layer receives event</text>
+<text x="160" y="592" font-size="12" fill="#534AB7">ai_svc reads from MQTT uplink, stores in EventStore memory</text>
+<text x="110" y="578" text-anchor="middle" fill="#534AB7" font-size="18" font-weight="500">7</text>
+<line x1="340" y1="606" x2="340" y2="628" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- Step 8 -->
+<rect x="140" y="630" width="400" height="56" rx="10" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="160" y="654" font-size="14" font-weight="500" fill="#26215C">Step 8 — After 5 events, Claude analyzes</text>
+<text x="160" y="672" font-size="12" fill="#534AB7">Batch sent to Claude: "Was this box scanned IN before going OUT?"</text>
+<text x="110" y="658" text-anchor="middle" fill="#534AB7" font-size="18" font-weight="500">8</text>
+<line x1="340" y1="686" x2="340" y2="708" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- Step 9 -->
+<rect x="140" y="710" width="400" height="70" rx="10" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="160" y="734" font-size="14" font-weight="500" fill="#501313">Step 9 — Claude finds anomaly!</text>
+<text x="160" y="754" font-size="12" fill="#A32D2D">"Box 884D000EDF01 went OUT but was never scanned IN.</text>
+<text x="160" y="770" font-size="12" fill="#A32D2D">Possible theft or bypassed entrance."</text>
+<text x="110" y="740" text-anchor="middle" fill="#A32D2D" font-size="18" font-weight="500">9</text>
+<line x1="340" y1="780" x2="340" y2="802" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+
+<!-- Step 10 -->
+<rect x="140" y="804" width="400" height="56" rx="10" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="160" y="828" font-size="14" font-weight="500" fill="#501313">Step 10 — Alert published to MQTT</text>
+<text x="160" y="846" font-size="12" fill="#A32D2D">[HIGH] MISSING_IN_SCAN → sent to alerts topic + gate reader</text>
+<text x="110" y="832" text-anchor="middle" fill="#A32D2D" font-size="18" font-weight="500">10</text>
+
+<!-- Timeline line -->
+<line x1="70" y1="75" x2="70" y2="855" stroke="#888780" stroke-width="0.5" stroke-dasharray="3 3" opacity="0.3"/>
+
+</svg>

@@ -1,0 +1,90 @@
+<svg width="100%" viewBox="0 0 680 860" xmlns="http://www.w3.org/2000/svg" style="font-family: system-ui, -apple-system, sans-serif; background: white;">
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<text x="340" y="28" text-anchor="middle" font-size="16" font-weight="500" fill="#2C2C2A">RFID Gate Intelligence Platform — complete architecture</text>
+<text x="340" y="48" text-anchor="middle" font-size="12" fill="#888780">Follow the numbers to see how data flows through the system</text>
+
+<!-- LAYER 1: RFID Gate Readers -->
+<rect x="40" y="75" width="600" height="110" rx="14" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="60" y="96" font-size="14" font-weight="500" fill="#4A1B0C">Layer 1 — RFID gate readers (simulator)</text>
+<text x="60" y="114" font-size="12" fill="#993C1D">Real hardware would be here. We simulate 3 readers sending HTTP POST to port 4501</text>
+
+<rect x="70" y="130" width="160" height="40" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="150" y="154" text-anchor="middle" font-size="12" fill="#4A1B0C">Door 01 — main entrance</text>
+<rect x="260" y="130" width="160" height="40" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="340" y="154" text-anchor="middle" font-size="12" fill="#4A1B0C">Door 02 — shipping dock</text>
+<rect x="450" y="130" width="160" height="40" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="530" y="154" text-anchor="middle" font-size="12" fill="#4A1B0C">Door 03 — warehouse</text>
+
+<!-- Arrow 1 -->
+<text x="26" y="212" font-size="16" font-weight="500" fill="#D85A30">1</text>
+<text x="80" y="212" font-size="12" fill="#888780">HTTP POST with JSON packets (health + tag data)</text>
+<line x1="340" y1="185" x2="340" y2="230" stroke="#D85A30" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- LAYER 2: Middleware -->
+<rect x="120" y="232" width="440" height="80" rx="14" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="340" y="258" text-anchor="middle" font-size="14" font-weight="500" fill="#042C53">Layer 2 — Flask middleware (port 4501)</text>
+<text x="340" y="278" text-anchor="middle" font-size="12" fill="#185FA5">Validates JSON → stores in DynamoDB → publishes to MQTT</text>
+<text x="340" y="294" text-anchor="middle" font-size="12" fill="#185FA5">Sends ACK back: 4000=success, 4001=invalid, 4002=DB fail</text>
+
+<!-- Arrow 2a and 2b -->
+<text x="26" y="348" font-size="16" font-weight="500" fill="#185FA5">2</text>
+<line x1="240" y1="312" x2="160" y2="362" stroke="#185FA5" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="440" y1="312" x2="500" y2="362" stroke="#185FA5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- DynamoDB -->
+<rect x="60" y="364" width="200" height="56" rx="10" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="160" y="388" text-anchor="middle" font-size="14" font-weight="500" fill="#412402">AWS DynamoDB</text>
+<text x="160" y="406" text-anchor="middle" font-size="12" fill="#854F0B">Permanent tag + health storage</text>
+
+<!-- MQTT Broker -->
+<rect x="400" y="364" width="220" height="56" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="510" y="388" text-anchor="middle" font-size="14" font-weight="500" fill="#04342C">MQTT broker (secured)</text>
+<text x="510" y="406" text-anchor="middle" font-size="12" fill="#0F6E56">Mosquitto + auth + ACL</text>
+
+<!-- Arrow 3 -->
+<text x="26" y="458" font-size="16" font-weight="500" fill="#1D9E75">3</text>
+<text x="80" y="458" font-size="12" fill="#888780">AI layer subscribes to MQTT uplink topic</text>
+<line x1="510" y1="420" x2="510" y2="478" stroke="#0F6E56" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- LAYER 4: AI -->
+<rect x="120" y="480" width="440" height="100" rx="14" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="340" y="506" text-anchor="middle" font-size="14" font-weight="500" fill="#26215C">Layer 4 — AI anomaly detection (ai_svc)</text>
+<text x="340" y="526" text-anchor="middle" font-size="12" fill="#534AB7">Collects events in memory (EventStore)</text>
+<text x="340" y="544" text-anchor="middle" font-size="12" fill="#534AB7">Every 5 events → sends batch to Claude for analysis</text>
+<text x="340" y="562" text-anchor="middle" font-size="12" fill="#534AB7">Claude checks: missing IN scans, rapid movement, antenna failures</text>
+
+<!-- Arrow 4 -->
+<text x="26" y="618" font-size="16" font-weight="500" fill="#534AB7">4</text>
+<text x="80" y="618" font-size="12" fill="#888780">Events sent to Claude API for analysis</text>
+<line x1="340" y1="580" x2="340" y2="630" stroke="#534AB7" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- Claude API -->
+<rect x="200" y="632" width="280" height="48" rx="10" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="340" y="660" text-anchor="middle" font-size="14" font-weight="500" fill="#26215C">Claude Haiku API (Anthropic)</text>
+
+<!-- Arrow 5 -->
+<text x="26" y="710" font-size="16" font-weight="500" fill="#534AB7">5</text>
+<text x="80" y="710" font-size="12" fill="#888780">Claude responds with anomaly alerts in JSON</text>
+<line x1="340" y1="680" x2="340" y2="720" stroke="#534AB7" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- Alerts -->
+<rect x="140" y="722" width="400" height="56" rx="10" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="340" y="746" text-anchor="middle" font-size="14" font-weight="500" fill="#501313">Alerts published back to MQTT</text>
+<text x="340" y="764" text-anchor="middle" font-size="12" fill="#A32D2D">MISSING_IN_SCAN, RAPID_MOVEMENT, ANTENNA_FAILURE</text>
+
+<!-- Arrow 6 -->
+<text x="26" y="808" font-size="16" font-weight="500" fill="#A32D2D">6</text>
+<text x="80" y="808" font-size="12" fill="#888780">Dashboards and gate readers receive alerts via MQTT</text>
+<line x1="540" y1="748" x2="595" y2="748" stroke="#A32D2D" stroke-width="1" stroke-dasharray="4 4"/>
+<line x1="595" y1="748" x2="595" y2="392" stroke="#A32D2D" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrow)"/>
+
+<!-- Security bar -->
+<rect x="40" y="830" width="600" height="24" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="340" y="846" text-anchor="middle" font-size="12" fill="#04342C">All MQTT connections require username + password + ACL permissions</text>
+
+</svg>
