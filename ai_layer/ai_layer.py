@@ -285,9 +285,9 @@ def print_banner(args):
     print(f"  MQTT user     : {config.MQTT_USER or 'anonymous (no auth)'}")
     print(f"  Listening on  : {config.MQTT_UPLINK_TOPIC}")
     print(f"  Alerts topic  : {config.MQTT_AI_ALERT_TOPIC}")
-    print(f"  Claude model  : {config.CLAUDE_MODEL}")
+    print(f"  AI provider   : {config.AI_PROVIDER}")
+    print(f"  Model         : {config.BEDROCK_MODEL_ID if config.AI_PROVIDER == 'bedrock' else config.DIRECT_MODEL}")
     print(f"  Analyze every : {interval}s or {threshold} events")
-    print(f"  API key       : {'✓ set' if config.ANTHROPIC_API_KEY else '✗ MISSING'}")
     print("=" * 60)
     print(f"  Press {YELLOW}Ctrl+C{RESET} to stop")
     print("=" * 60)
@@ -319,12 +319,12 @@ def main():
 
     print_banner(args)
 
-    # --- Check API key ---
-    if not config.ANTHROPIC_API_KEY:
+    # --- Check API key (only needed for direct provider) ---
+    if config.AI_PROVIDER == "direct" and not config.ANTHROPIC_API_KEY:
         logger.error(
-            f"{RED}ERROR: ANTHROPIC_API_KEY environment variable not set!{RESET}\n"
-            f"  Run this command first:\n"
-            f"  export ANTHROPIC_API_KEY='sk-ant-your-key-here'"
+            f"{RED}ERROR: ANTHROPIC_API_KEY not set and AI_PROVIDER=direct!{RESET}\n"
+            f"  Either set the API key or switch to Bedrock:\n"
+            f"  export AI_PROVIDER=bedrock"
         )
         sys.exit(1)
 
