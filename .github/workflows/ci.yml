@@ -52,6 +52,7 @@ jobs:
           python -m py_compile ai_layer/anomaly_detector.py
           python -m py_compile ai_layer/event_store.py
           python -m py_compile ai_layer/config.py
+          python -m py_compile middleware/metrics.py
           echo "✓ All Python files compile successfully"
 
   # --------------------------------------------------------
@@ -99,7 +100,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install flask boto3 paho-mqtt python-dotenv requests
+          pip install flask boto3 paho-mqtt python-dotenv requests prometheus-client
 
       - name: Run middleware smoke tests
         working-directory: middleware
@@ -216,7 +217,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install flask boto3 paho-mqtt python-dotenv requests
+          pip install flask boto3 paho-mqtt python-dotenv requests prometheus-client
 
       - name: Run integration test
         env:
