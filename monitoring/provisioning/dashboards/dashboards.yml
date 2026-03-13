@@ -1,0 +1,15 @@
+# Auto-provision dashboards from JSON files
+# Grafana loads dashboard JSON from /etc/grafana/provisioning/dashboards/
+
+apiVersion: 1
+
+providers:
+  - name: "RFID Dashboards"
+    orgId: 1
+    folder: "RFID Gate Intelligence"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

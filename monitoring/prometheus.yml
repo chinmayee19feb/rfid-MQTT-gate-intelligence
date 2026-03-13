@@ -1,0 +1,33 @@
+# ============================================================
+# Prometheus Configuration
+# RFID Gate Intelligence Platform
+# ============================================================
+# Prometheus visits the /metrics endpoint every 15 seconds
+# and stores the data as time-series (value + timestamp).
+# Grafana then queries this data to draw charts.
+# ============================================================
+
+global:
+  scrape_interval: 15s       # How often to collect metrics
+  evaluation_interval: 15s   # How often to evaluate alert rules
+
+scrape_configs:
+  # ----------------------------------------------------------
+  # Job: RFID Middleware
+  # ----------------------------------------------------------
+  # Scrapes http://host.docker.internal:4501/metrics
+  # host.docker.internal = your laptop from inside Docker
+  - job_name: "rfid-middleware"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:4501"]
+        labels:
+          service: "middleware"
+          environment: "development"
+
+  # ----------------------------------------------------------
+  # Job: Prometheus itself (self-monitoring)
+  # ----------------------------------------------------------
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

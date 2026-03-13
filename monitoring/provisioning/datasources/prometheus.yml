@@ -1,0 +1,13 @@
+# Auto-provision Prometheus as a data source in Grafana
+# This means Grafana connects to Prometheus automatically on startup
+# No manual setup needed!
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
