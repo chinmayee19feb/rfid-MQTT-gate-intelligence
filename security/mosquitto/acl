@@ -1,0 +1,47 @@
+# ============================================================
+# Mosquitto ACL — Access Control List
+# RFID Gate Intelligence Platform
+# ============================================================
+# Rules: "topic read/write/readwrite <topic pattern>"
+# %u = username of the connected client
+# # = wildcard (matches any subtopic)
+#
+# We define 3 users with different permissions:
+#
+#   middleware_svc  — the Flask middleware (publishes events, sends ACKs)
+#   ai_svc         — the AI anomaly detection layer (reads events, publishes alerts)
+#   simulator_svc  — the CTAgent simulator (not on MQTT directly, but reserved)
+#   dashboard_svc  — Grafana/monitoring (read-only access to everything)
+# ============================================================
+
+# ----------------------------------------------------------
+# middleware_svc
+# ----------------------------------------------------------
+# Can WRITE to uplink (publishes RFID events from readers)
+# Can WRITE to downlink (sends ACK packets back to readers)
+# Can READ downlink (to see its own ACKs for logging)
+user middleware_svc
+topic readwrite Intellidb/rfid/gr/uplink
+topic readwrite Intellidb/rfid/gr/downlink/#
+
+# ----------------------------------------------------------
+# ai_svc
+# ----------------------------------------------------------
+# Can READ uplink (listens for incoming RFID events)
+# Can WRITE to AI alerts topic (publishes anomaly alerts)
+# Can WRITE to downlink (sends alerts to specific readers)
+# Can READ downlink (to see alerts for logging)
+user ai_svc
+topic read Intellidb/rfid/gr/uplink
+topic readwrite Intellidb/rfid/ai/alerts
+topic readwrite Intellidb/rfid/gr/downlink/#
+
+# ----------------------------------------------------------
+# dashboard_svc
+# ----------------------------------------------------------
+# READ-ONLY access to everything — for monitoring dashboards.
+# Cannot publish anything.
+user dashboard_svc
+topic read Intellidb/rfid/gr/uplink
+topic read Intellidb/rfid/gr/downlink/#
+topic read Intellidb/rfid/ai/alerts

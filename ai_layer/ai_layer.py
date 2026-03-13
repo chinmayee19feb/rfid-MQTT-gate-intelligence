@@ -11,12 +11,6 @@ What it does:
   4. Periodically sends accumulated events to Claude for analysis
   5. Publishes any anomaly alerts back to MQTT
 
-Think of it as a security guard that:
-  - Watches the RFID event stream (MQTT subscription)
-  - Takes notes on a notepad (EventStore)
-  - Every so often, reviews the notes with an AI analyst (Claude)
-  - Radios back if something looks wrong (MQTT alert publish)
-
 Usage:
     # Normal mode (analyze every 60s or 10 events):
     python ai_layer.py
@@ -66,8 +60,6 @@ RESET = "\033[0m"
 # ═══════════════════════════════════════════════════════════════════════════
 # MQTT Callbacks
 # ═══════════════════════════════════════════════════════════════════════════
-# These functions are called automatically by the MQTT client library
-# when specific events happen (connected, message received, etc.)
 
 def on_connect(client, userdata, flags, rc):
     """
@@ -83,6 +75,11 @@ def on_connect(client, userdata, flags, rc):
         client.subscribe(config.MQTT_UPLINK_TOPIC, qos=1)
         logger.info(
             f"Subscribed to: {CYAN}{config.MQTT_UPLINK_TOPIC}{RESET}"
+        )
+    elif rc == 5:
+        logger.error(
+            f"{RED}MQTT connection refused: not authorised.{RESET} "
+            "Check MQTT_AI_USER and MQTT_AI_PASS."
         )
     else:
         error_messages = {
@@ -285,6 +282,7 @@ def print_banner(args):
     print("=" * 60)
     print(f"  Mode          : {GREEN}{mode}{RESET}")
     print(f"  MQTT broker   : {config.MQTT_BROKER_HOST}:{config.MQTT_BROKER_PORT}")
+    print(f"  MQTT user     : {config.MQTT_USER or 'anonymous (no auth)'}")
     print(f"  Listening on  : {config.MQTT_UPLINK_TOPIC}")
     print(f"  Alerts topic  : {config.MQTT_AI_ALERT_TOPIC}")
     print(f"  Claude model  : {config.CLAUDE_MODEL}")
@@ -335,11 +333,18 @@ def main():
     detector = AnomalyDetector()
 
     # --- Set up MQTT client ---
-    # We pass the store as "userdata" so the on_message callback can access it
     client = mqtt.Client(
         client_id="rfid-ai-layer",
         userdata={"store": store},
     )
+
+    # Set MQTT credentials for secured broker
+    if config.MQTT_USER:
+        client.username_pw_set(config.MQTT_USER, config.MQTT_PASS)
+        logger.info(f"MQTT auth: connecting as '{config.MQTT_USER}'")
+    else:
+        logger.warning("MQTT auth: no credentials set (anonymous mode)")
+
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
     client.on_message = on_message
@@ -371,7 +376,6 @@ def main():
     analysis_thread.start()
 
     # --- Start the MQTT event loop ---
-    # This runs forever, processing incoming messages
     try:
         logger.info(f"{GREEN}AI Layer is running. Listening for RFID events...{RESET}\n")
         client.loop_forever()
